@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+sub reset_timestamps ($) {
+   my($dir) = @_;
+   my(@stats, @files, $mtime, $max);
+
+   @stats = lstat $dir;
+   return if -l _;
+   return $stats[9] unless -d _;
+   opendir DIR, $dir or warn "$dir: $!\n";
+   @files = map { "$dir/$_"; } sort grep {$_ ne "." && $_ ne ".."} readdir DIR;
+   closedir DIR;
+   foreach $file (@files) {
+      $mtime = &reset_timestamps($file);
+      $max = $mtime if $mtime > $max;
+   }
+   if ($max and $max != $stats[9]) {
+      print "$dir\n" if $verbose;
+      utime $max, $max, $dir;
+   }
+   return $max;
+}
+
+shift, $verbose++ if $ARGV[0] eq "-v";
+
+die "Usage: $0 [-v] <directory> [...]\n" if $ARGV[0] =~ /^-/;
+
+@ARGV = (".") unless @ARGV;
+
+foreach $dir (@ARGV) {
+   &reset_timestamps($dir);
+}
